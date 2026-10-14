@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Doc chat</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f3ea;
+      --sheet: #fffdf8;
+      --ink: #1d1a16;
+      --muted: #6f675c;
+      --line: #e4dccb;
+      --accent: #8d3b2f;
+      --accent-ink: #fffaf6;
+      --note: #f3ecdf;
+      --danger: #8d3b2f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .page {
+      width: min(760px, calc(100% - 32px));
+      margin: 28px auto 40px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .mark {
+      margin: 0 0 4px;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    h1 {
+      margin: 0;
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      font-size: 40px;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .actions { display: flex; gap: 8px; }
+    button, .ghost {
+      border: 1px solid var(--line);
+      background: var(--sheet);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-ink);
+    }
+    button:disabled { opacity: 0.55; cursor: default; }
+    .banner, .sheet {
+      background: var(--sheet);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+    .banner {
+      display: none;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+    }
+    .banner.visible { display: block; }
+    .banner p { margin: 0 0 12px; }
+    .sheet {
+      min-height: 68vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #log {
+      flex: 1;
+      padding: 22px 22px 8px;
+      overflow-y: auto;
+    }
+    .empty { color: var(--muted); margin: 8px 0 18px; }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .suggestions button { border-radius: 12px; text-align: left; }
+    .msg { margin: 0 0 16px; max-width: 62ch; }
+    .msg.user { margin-left: auto; }
+    .who {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .bubble {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .msg.user .bubble {
+      background: var(--note);
+      border-radius: 14px 14px 4px 14px;
+      padding: 10px 12px;
+    }
+    .tool {
+      margin: 0 0 12px 2px;
+      padding-left: 10px;
+      border-left: 2px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .tool.running { color: var(--ink); }
+    .error {
+      color: var(--danger);
+      margin: 0 0 16px;
+    }
+    form {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+    }
+    textarea {
+      flex: 1;
+      resize: none;
+      min-height: 52px;
+      max-height: 180px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      line-height: 1.4;
+      padding: 8px;
+    }
+    textarea:focus { outline: none; }
+    a { color: var(--accent); }
+    footer {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <p class="mark">Google Docs</p>
+        <h1>Write with me</h1>
+      </div>
+      <div class="actions">
+        <button type="button" id="clear" class="ghost">Clear</button>
+      </div>
+    </header>
+    <section id="banner" class="banner visible">
+      <p id="banner-text">Connect Google Docs before the first edit.</p>
+      <button type="button" id="connect" class="primary">Connect Google Docs</button>
+    </section>
+    <main class="sheet">
+      <div id="log" aria-live="polite">
+        <div id="empty" class="empty">
+          <p>Ask for a change in a doc you already have, or start a new one.</p>
+          <div class="suggestions">
+            <button type="button" data-prompt="List my recent documents.">List my recent documents</button>
+            <button type="button" data-prompt="Create a document called Meeting notes.">Create meeting notes</button>
+          </div>
+        </div>
+      </div>
+      <form id="composer">
+        <textarea id="message" rows="2" placeholder="Ask for an edit. Enter to send." aria-label="Message"></textarea>
+        <button type="submit" id="send" class="primary">Send</button>
+      </form>
+    </main>
+    <footer>Runs on this computer. The chat is kept in memory until the server stops.</footer>
+  </div>
+  <script>
+    const log = document.querySelector("#log");
+    const empty = document.querySelector("#empty");
+    const form = document.querySelector("#composer");
+    const message = document.querySelector("#message");
+    const send = document.querySelector("#send");
+    const banner = document.querySelector("#banner");
+    const bannerText = document.querySelector("#banner-text");
+    const connect = document.querySelector("#connect");
+    const clearButton = document.querySelector("#clear");
+
+    const labels = {
+      list_documents: "Looking through your docs",
+      create_document: "Creating a document",
+      read_document: "Reading the document",
+      insert_text: "Inserting text",
+      replace_text: "Replacing text",
+      delete_text: "Deleting text",
+      format_text: "Updating text style",
+      format_paragraph: "Updating paragraph style"
+    };
+
+    let sessionId = null;
+    let sending = false;
+    let assistant = null;
+
+    function hideEmpty() {
+      if (empty) empty.remove();
+    }
+
+    function showEmpty() {
+      log.replaceChildren(empty);
+    }
+
+    function addMessage(role, text) {
+      hideEmpty();
+      const item = document.createElement("article");
+      item.className = "msg " + role;
+      const who = document.createElement("span");
+      who.className = "who";
+      who.textContent = role === "user" ? "You" : "Assistant";
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+      item.append(who, bubble);
+      log.append(item);
+      log.scrollTop = log.scrollHeight;
+      return { item, bubble, text };
+    }
+
+    function linkify(node, text) {
+      node.replaceChildren();
+      const pattern = /https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9-_]+[^\s)]*/g;
+      let cursor = 0;
+      for (const match of text.matchAll(pattern)) {
+        node.append(text.slice(cursor, match.index));
+        const link = document.createElement("a");
+        link.href = match[0];
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = match[0];
+        node.append(link);
+        cursor = match.index + match[0].length;
+      }
+      node.append(text.slice(cursor));
+    }
+
+    function ensureAssistant() {
+      if (!assistant) {
+        const created = addMessage("assistant", "");
+        assistant = { bubble: created.bubble, text: "", tool: null };
+      }
+      return assistant;
+    }
+
+    function appendText(chunk) {
+      const current = ensureAssistant();
+      current.text += chunk;
+      current.bubble.textContent = current.text;
+      current.tool = null;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function finishText() {
+      if (assistant && assistant.text) linkify(assistant.bubble, assistant.text);
+    }
+
+    function toolLine(name, status, summary) {
+      finishText();
+      const current = ensureAssistant();
+      if (!current.tool || current.tool.dataset.name !== name || current.tool.dataset.status === "done") {
+        const line = document.createElement("p");
+        line.className = "tool";
+        line.dataset.name = name;
+        current.bubble.parentElement.append(line);
+        current.tool = line;
+      }
+      const label = labels[name] || name;
+      current.tool.dataset.status = status;
+      current.tool.classList.toggle("running", status === "running");
+      current.tool.textContent = status === "running" ? label + "…" : label + (summary ? " — " + summary : "");
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function showError(text) {
+      hideEmpty();
+      const item = document.createElement("p");
+      item.className = "error";
+      item.textContent = text;
+      log.append(item);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setSending(active) {
+      sending = active;
+      send.disabled = active;
+      clearButton.disabled = active;
+      message.disabled = active;
+    }
+
+    function handleEvent(raw) {
+      let event = "message";
+      const dataLines = [];
+      for (const line of raw.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      }
+      if (!dataLines.length) return;
+      const data = JSON.parse(dataLines.join("\n"));
+      if (event === "session") sessionId = data.session_id;
+      else if (event === "text") appendText(data.text || "");
+      else if (event === "tool") toolLine(data.name, data.status, data.summary || "");
+      else if (event === "error") showError(data.message || "Something went wrong.");
+    }
+
+    async function sendMessage(text) {
+      const value = text.trim();
+      if (!value || sending) return;
+      addMessage("user", value);
+      message.value = "";
+      assistant = null;
+      setSending(true);
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: value, session_id: sessionId })
+        });
+        if (!response.ok || !response.body) {
+          const failure = await response.json().catch(() => ({}));
+          showError(failure.detail || "The chat request failed.");
+          return;
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const step = await reader.read();
+          if (step.done) break;
+          buffer += decoder.decode(step.value, { stream: true });
+          let splitAt = buffer.indexOf("\n\n");
+          while (splitAt >= 0) {
+            handleEvent(buffer.slice(0, splitAt));
+            buffer = buffer.slice(splitAt + 2);
+            splitAt = buffer.indexOf("\n\n");
+          }
+        }
+        finishText();
+      } catch (error) {
+        showError(error.message || "The connection dropped.");
+      } finally {
+        assistant = null;
+        setSending(false);
+        message.focus();
+      }
+    }
+
+    async function refreshAuth() {
+      const response = await fetch("/api/auth/status");
+      const status = await response.json();
+      banner.classList.toggle("visible", !status.connected);
+      if (!status.connected && status.detail) bannerText.textContent = status.detail;
+      else bannerText.textContent = "Connect Google Docs before the first edit.";
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendMessage(message.value);
+    });
+    message.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    document.querySelectorAll("[data-prompt]").forEach((button) => {
+      button.addEventListener("click", () => sendMessage(button.dataset.prompt));
+    });
+    clearButton.addEventListener("click", () => {
+      sessionId = null;
+      assistant = null;
+      showEmpty();
+    });
+    connect.addEventListener("click", async () => {
+      connect.disabled = true;
+      bannerText.textContent = "Approve the Google prompt in your browser.";
+      try {
+        const response = await fetch("/api/auth/login", { method: "POST" });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          bannerText.textContent = payload.detail || "Google sign-in failed.";
+          return;
+        }
+        await refreshAuth();
+      } catch (error) {
+        bannerText.textContent = error.message || "Google sign-in failed.";
+      } finally {
+        connect.disabled = false;
+      }
+    });
+    refreshAuth();
+    message.focus();
+  </script>
+</body>
+</html>
