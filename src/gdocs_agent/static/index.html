@@ -2,200 +2,226 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Doc chat</title>
+  <link rel="stylesheet" href="/overlay.css">
   <style>
     :root {
-      color-scheme: light;
-      --paper: #f7f3ea;
-      --sheet: #fffdf8;
-      --ink: #1d1a16;
-      --muted: #6f675c;
-      --line: #e4dccb;
-      --accent: #8d3b2f;
-      --accent-ink: #fffaf6;
-      --note: #f3ecdf;
-      --danger: #8d3b2f;
+      --bug: 48px;
+      --pad: 10px;
+      --gap: 8px;
+      --bar-w: 312px;
+      --bar-h: 52px;
+      --updates-h: 150px;
+      --notice: 44px;
+      --menu-w: 180px;
+      --menu-h: 84px;
     }
-    * { box-sizing: border-box; }
-    body {
+    html, body {
       margin: 0;
-      min-height: 100vh;
-      background: var(--paper);
-      color: var(--ink);
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #fffdf8;
+      color: #1d1a16;
       font-family: "Segoe UI", sans-serif;
-      font-size: 16px;
-      line-height: 1.5;
+      font-size: 13px;
+      line-height: 1.35;
+      user-select: none;
     }
-    .page {
-      width: min(760px, calc(100% - 32px));
-      margin: 28px auto 40px;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-    .mark {
-      margin: 0 0 4px;
-      font-size: 12px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    h1 {
-      margin: 0;
-      font-family: Palatino, "Palatino Linotype", Georgia, serif;
-      font-size: 40px;
-      font-weight: 500;
-      letter-spacing: -0.03em;
-      line-height: 1;
-    }
-    .actions { display: flex; gap: 8px; }
-    button, .ghost {
-      border: 1px solid var(--line);
-      background: var(--sheet);
-      color: var(--ink);
-      border-radius: 999px;
-      padding: 8px 14px;
-      font: inherit;
-      cursor: pointer;
-    }
-    button.primary {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: var(--accent-ink);
-    }
+    button, input { font: inherit; color: inherit; }
+    button { cursor: pointer; }
     button:disabled { opacity: 0.55; cursor: default; }
-    .banner, .sheet {
-      background: var(--sheet);
-      border: 1px solid var(--line);
-      border-radius: 18px;
+
+    #bug, #panel, #menu { position: absolute; }
+    body[data-anchor="right"] #bug { right: var(--pad); left: auto; }
+    body[data-anchor="left"] #bug { left: var(--pad); right: auto; }
+    body[data-vertical="bottom"] #bug,
+    body[data-vertical="bottom"] #panel,
+    body[data-vertical="bottom"] #menu { bottom: var(--pad); top: auto; }
+    body[data-vertical="top"] #bug,
+    body[data-vertical="top"] #panel,
+    body[data-vertical="top"] #menu { top: var(--pad); bottom: auto; }
+    body[data-anchor="right"] #panel,
+    body[data-anchor="right"] #menu {
+      right: calc(var(--pad) + var(--bug) + var(--gap));
+      left: auto;
     }
-    .banner {
+    body[data-anchor="left"] #panel,
+    body[data-anchor="left"] #menu {
+      left: calc(var(--pad) + var(--bug) + var(--gap));
+      right: auto;
+    }
+
+    #bug {
+      width: var(--bug);
+      height: var(--bug);
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: #8d3b2f;
+      color: #fffaf6;
+      display: grid;
+      place-items: center;
+      cursor: grab;
+      box-shadow: inset 0 0 0 1px rgba(255, 250, 246, 0.28);
+    }
+    #bug:active { cursor: grabbing; }
+    #bug svg { display: block; }
+
+    #panel, #menu {
       display: none;
-      padding: 16px 18px;
-      margin-bottom: 12px;
+      box-sizing: border-box;
+      background: rgba(255, 253, 248, 0.98);
+      border: 1px solid rgba(29, 26, 22, 0.12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
-    .banner.visible { display: block; }
-    .banner p { margin: 0 0 12px; }
-    .sheet {
-      min-height: 68vh;
-      display: flex;
+    #panel {
       flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 16px;
       overflow: hidden;
     }
-    #log {
+    #menu {
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 14px;
+    }
+    body[data-mode="bar"] #panel,
+    body[data-mode="updates"] #panel { display: flex; }
+    body[data-mode="bar"] #panel { width: var(--bar-w); height: var(--bar-h); }
+    body[data-notice="on"][data-mode="bar"] #panel {
+      height: calc(var(--bar-h) + var(--notice));
+    }
+    body[data-mode="updates"] #panel { width: var(--bar-w); height: var(--updates-h); }
+    body[data-notice="on"][data-mode="updates"] #panel {
+      height: calc(var(--updates-h) + var(--notice));
+    }
+    body[data-mode="menu"] #menu { display: flex; width: var(--menu-w); height: var(--menu-h); }
+
+    #auth { display: none; align-items: center; gap: 8px; min-height: 36px; }
+    body[data-notice="on"] #auth { display: flex; }
+    #auth p { margin: 0; flex: 1; color: #6f675c; font-size: 12px; }
+    #connect {
+      border: 0;
+      background: #8d3b2f;
+      color: #fffaf6;
+      border-radius: 999px;
+      height: 28px;
+      padding: 0 10px;
+      flex: none;
+    }
+
+    #updates {
+      display: none;
       flex: 1;
-      padding: 22px 22px 8px;
-      overflow-y: auto;
+      min-height: 0;
+      flex-direction: column;
+      gap: 4px;
     }
-    .empty { color: var(--muted); margin: 8px 0 18px; }
-    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
-    .suggestions button { border-radius: 12px; text-align: left; }
-    .msg { margin: 0 0 16px; max-width: 62ch; }
-    .msg.user { margin-left: auto; }
-    .who {
-      display: block;
-      margin-bottom: 4px;
-      color: var(--muted);
+    body[data-mode="updates"] #updates { display: flex; }
+    #status, #error, #reply { margin: 0; }
+    #status {
+      color: #6f675c;
       font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .bubble {
+    #status:empty { display: none; }
+    #reply {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
       white-space: pre-wrap;
       word-wrap: break-word;
+      user-select: text;
+      cursor: text;
     }
-    .msg.user .bubble {
-      background: var(--note);
-      border-radius: 14px 14px 4px 14px;
-      padding: 10px 12px;
+    #reply:empty { display: none; }
+    #error { color: #8d3b2f; }
+    #error:empty { display: none; }
+    #reply a { color: #8d3b2f; }
+
+    #composer { display: flex; gap: 6px; align-items: center; height: 36px; }
+    #close {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #6f675c;
+      flex: none;
     }
-    .tool {
-      margin: 0 0 12px 2px;
-      padding-left: 10px;
-      border-left: 2px solid var(--line);
-      color: var(--muted);
-      font-size: 14px;
-    }
-    .tool.running { color: var(--ink); }
-    .error {
-      color: var(--danger);
-      margin: 0 0 16px;
-    }
-    form {
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
-      padding: 12px;
-      border-top: 1px solid var(--line);
-    }
-    textarea {
+    #close:hover, #menu button:hover { background: #f3ecdf; }
+    #message {
       flex: 1;
-      resize: none;
-      min-height: 52px;
-      max-height: 180px;
+      min-width: 0;
+      height: 36px;
+      border: 0;
+      border-radius: 999px;
+      background: #f3ecdf;
+      padding: 0 12px;
+    }
+    #message:focus { outline: 2px solid rgba(141, 59, 47, 0.35); outline-offset: 0; }
+    #send {
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: #8d3b2f;
+      color: #fffaf6;
+      padding: 0 12px;
+      flex: none;
+    }
+    #menu button {
       border: 0;
       background: transparent;
-      color: inherit;
-      font: inherit;
-      line-height: 1.4;
-      padding: 8px;
-    }
-    textarea:focus { outline: none; }
-    a { color: var(--accent); }
-    footer {
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 13px;
+      text-align: left;
+      border-radius: 8px;
+      padding: 8px 10px;
     }
   </style>
 </head>
-<body>
-  <div class="page">
-    <header>
-      <div>
-        <p class="mark">Google Docs</p>
-        <h1>Write with me</h1>
-      </div>
-      <div class="actions">
-        <button type="button" id="clear" class="ghost">Clear</button>
-      </div>
-    </header>
-    <section id="banner" class="banner visible">
-      <p id="banner-text">Connect Google Docs before the first edit.</p>
-      <button type="button" id="connect" class="primary">Connect Google Docs</button>
-    </section>
-    <main class="sheet">
-      <div id="log" aria-live="polite">
-        <div id="empty" class="empty">
-          <p>Ask for a change in a doc you already have, or start a new one.</p>
-          <div class="suggestions">
-            <button type="button" data-prompt="List my recent documents.">List my recent documents</button>
-            <button type="button" data-prompt="Create a document called Meeting notes.">Create meeting notes</button>
-          </div>
-        </div>
-      </div>
-      <form id="composer">
-        <textarea id="message" rows="2" placeholder="Ask for an edit. Enter to send." aria-label="Message"></textarea>
-        <button type="submit" id="send" class="primary">Send</button>
-      </form>
-    </main>
-    <footer>Runs on this computer. The chat is kept in memory until the server stops.</footer>
+<body data-mode="bug" data-anchor="right" data-vertical="bottom" data-notice="off">
+  <section id="panel" aria-label="Doc chat">
+    <div id="auth">
+      <p id="auth-text">Connect Google Docs before the first edit.</p>
+      <button type="button" id="connect">Connect</button>
+    </div>
+    <div id="updates">
+      <p id="status"></p>
+      <div id="reply"></div>
+      <p id="error"></p>
+    </div>
+    <form id="composer">
+      <button type="button" id="close" aria-label="Hide chat">×</button>
+      <input id="message" type="text" placeholder="Ask for an edit" aria-label="Message" autocomplete="off">
+      <button type="submit" id="send">Send</button>
+    </form>
+  </section>
+  <button type="button" id="bug" aria-label="Doc chat" aria-expanded="false">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 3.5h7l4 4V20a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 20V5A1.5 1.5 0 0 1 7 3.5z" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M14 3.5V8h4.5" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M8.5 12.5h7M8.5 16h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <div id="menu" role="menu">
+    <button type="button" id="reset" role="menuitem">Reset position</button>
+    <button type="button" id="quit" role="menuitem">Quit</button>
   </div>
   <script>
-    const log = document.querySelector("#log");
-    const empty = document.querySelector("#empty");
-    const form = document.querySelector("#composer");
+    const bug = document.querySelector("#bug");
     const message = document.querySelector("#message");
     const send = document.querySelector("#send");
-    const banner = document.querySelector("#banner");
-    const bannerText = document.querySelector("#banner-text");
+    const form = document.querySelector("#composer");
+    const statusLine = document.querySelector("#status");
+    const reply = document.querySelector("#reply");
+    const errorLine = document.querySelector("#error");
+    const authText = document.querySelector("#auth-text");
     const connect = document.querySelector("#connect");
-    const clearButton = document.querySelector("#clear");
 
     const labels = {
       list_documents: "Looking through your docs",
@@ -208,33 +234,172 @@
       format_paragraph: "Updating paragraph style"
     };
 
-    let sessionId = null;
+    let bugX = null;
+    let bugY = null;
+    let mode = "bug";
+    let connected = true;
+    let pointerInside = false;
     let sending = false;
+    let fieldFocused = false;
+    let dragging = false;
+    let sessionId = null;
     let assistant = null;
+    let collapseTimer = null;
+    let queued = null;
+    let pumping = false;
 
-    function hideEmpty() {
-      if (empty) empty.remove();
+    function api() {
+      return window.pywebview && window.pywebview.api;
     }
 
-    function showEmpty() {
-      log.replaceChildren(empty);
+    function requestLayout(nextMode, x, y) {
+      mode = nextMode;
+      const showNotice = !connected && (nextMode === "bar" || nextMode === "updates");
+      queued = { mode: nextMode, x, y, notice: showNotice };
+      if (!pumping) pump();
     }
 
-    function addMessage(role, text) {
-      hideEmpty();
-      const item = document.createElement("article");
-      item.className = "msg " + role;
-      const who = document.createElement("span");
-      who.className = "who";
-      who.textContent = role === "user" ? "You" : "Assistant";
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.textContent = text;
-      item.append(who, bubble);
-      log.append(item);
-      log.scrollTop = log.scrollHeight;
-      return { item, bubble, text };
+    async function pump() {
+      pumping = true;
+      try {
+        while (queued) {
+          const current = queued;
+          queued = null;
+          const bridge = api();
+          if (!bridge) return;
+          try {
+            const layout = await bridge.layout(current.x, current.y, current.mode, current.notice);
+            bugX = layout.bugX;
+            bugY = layout.bugY;
+            if (!queued) apply(layout, current.mode);
+          } catch {
+          }
+        }
+      } finally {
+        pumping = false;
+        if (queued) pump();
+      }
     }
+
+    function apply(layout, nextMode) {
+      mode = nextMode;
+      document.body.dataset.mode = nextMode;
+      document.body.dataset.anchor = layout.anchor;
+      document.body.dataset.vertical = layout.vertical;
+      document.body.dataset.notice = connected ? "off" : "on";
+      bug.setAttribute("aria-expanded", nextMode === "bug" ? "false" : "true");
+    }
+
+    function scheduleCollapse(delay) {
+      clearTimeout(collapseTimer);
+      collapseTimer = setTimeout(async () => {
+        if (dragging || sending || fieldFocused || mode === "bug" || bugX === null) return;
+        const bridge = api();
+        if (pointerInside) return;
+        if (bridge && await bridge.pointer_over()) {
+          pointerInside = true;
+          return;
+        }
+        if (dragging || sending || fieldFocused || pointerInside || mode === "bug") return;
+        requestLayout("bug", bugX, bugY);
+      }, delay);
+    }
+
+    document.documentElement.addEventListener("pointerenter", () => {
+      pointerInside = true;
+      clearTimeout(collapseTimer);
+      if (dragging || sending || fieldFocused || bugX === null) return;
+      if (mode === "bug") requestLayout("bar", bugX, bugY);
+    });
+
+    document.documentElement.addEventListener("pointerleave", () => {
+      pointerInside = false;
+      if (dragging) return;
+      scheduleCollapse(sending ? 1600 : 240);
+    });
+
+    bug.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || bugX === null) return;
+      event.preventDefault();
+      dragging = true;
+      const originX = bugX;
+      const originY = bugY;
+      const startX = event.screenX;
+      const startY = event.screenY;
+      bug.setPointerCapture(event.pointerId);
+
+      function move(ev) {
+        requestLayout(mode, originX + (ev.screenX - startX), originY + (ev.screenY - startY));
+      }
+      function up(ev) {
+        dragging = false;
+        bug.removeEventListener("pointermove", move);
+        bug.removeEventListener("pointerup", up);
+        const bridge = api();
+        if (bridge) {
+          bridge.save_position(originX + (ev.screenX - startX), originY + (ev.screenY - startY)).then((saved) => {
+            bugX = saved.bugX;
+            bugY = saved.bugY;
+          });
+        }
+        if (!pointerInside) scheduleCollapse(240);
+      }
+      bug.addEventListener("pointermove", move);
+      bug.addEventListener("pointerup", up);
+    });
+
+    bug.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      if (bugX === null) return;
+      requestLayout("menu", bugX, bugY);
+    });
+
+    document.querySelector("#close").addEventListener("click", () => {
+      if (bugX === null) return;
+      requestLayout("bug", bugX, bugY);
+    });
+    document.querySelector("#reset").addEventListener("click", async () => {
+      const bridge = api();
+      if (!bridge) return;
+      const layout = await bridge.reset_position();
+      bugX = layout.bugX;
+      bugY = layout.bugY;
+      apply(layout, "bug");
+    });
+    document.querySelector("#quit").addEventListener("click", () => {
+      const bridge = api();
+      if (bridge) bridge.quit();
+    });
+
+    message.addEventListener("pointerdown", async (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const bridge = api();
+      if (bridge) await bridge.activate();
+      fieldFocused = true;
+      message.focus();
+    });
+    message.addEventListener("focus", () => {
+      fieldFocused = true;
+      clearTimeout(collapseTimer);
+    });
+    message.addEventListener("blur", () => {
+      fieldFocused = false;
+      setTimeout(() => {
+        if (!fieldFocused && api()) api().deactivate();
+      }, 180);
+      scheduleCollapse(240);
+    });
+    message.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendMessage(message.value);
+    });
 
     function linkify(node, text) {
       node.replaceChildren();
@@ -246,88 +411,68 @@
         link.href = match[0];
         link.target = "_blank";
         link.rel = "noopener noreferrer";
-        link.textContent = match[0];
+        link.textContent = "Open document";
         node.append(link);
         cursor = match.index + match[0].length;
       }
       node.append(text.slice(cursor));
     }
 
-    function ensureAssistant() {
-      if (!assistant) {
-        const created = addMessage("assistant", "");
-        assistant = { bubble: created.bubble, text: "", tool: null };
-      }
-      return assistant;
+    function clearTurn() {
+      assistant = { text: "" };
+      statusLine.textContent = "Working…";
+      reply.replaceChildren();
+      errorLine.textContent = "";
     }
 
     function appendText(chunk) {
-      const current = ensureAssistant();
-      current.text += chunk;
-      current.bubble.textContent = current.text;
-      current.tool = null;
-      log.scrollTop = log.scrollHeight;
+      if (!assistant) assistant = { text: "" };
+      assistant.text += chunk;
+      reply.textContent = assistant.text;
+      reply.scrollTop = reply.scrollHeight;
     }
 
     function finishText() {
-      if (assistant && assistant.text) linkify(assistant.bubble, assistant.text);
+      if (assistant && assistant.text) linkify(reply, assistant.text);
     }
 
-    function toolLine(name, status, summary) {
+    function toolLine(name, toolStatus, summary) {
       finishText();
-      const current = ensureAssistant();
-      if (!current.tool || current.tool.dataset.name !== name || current.tool.dataset.status === "done") {
-        const line = document.createElement("p");
-        line.className = "tool";
-        line.dataset.name = name;
-        current.bubble.parentElement.append(line);
-        current.tool = line;
-      }
       const label = labels[name] || name;
-      current.tool.dataset.status = status;
-      current.tool.classList.toggle("running", status === "running");
-      current.tool.textContent = status === "running" ? label + "…" : label + (summary ? " — " + summary : "");
-      log.scrollTop = log.scrollHeight;
+      statusLine.textContent = toolStatus === "running"
+        ? label + "…"
+        : label + (summary ? " — " + summary : "");
     }
 
     function showError(text) {
-      hideEmpty();
-      const item = document.createElement("p");
-      item.className = "error";
-      item.textContent = text;
-      log.append(item);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    function setSending(active) {
-      sending = active;
-      send.disabled = active;
-      clearButton.disabled = active;
-      message.disabled = active;
+      errorLine.textContent = text;
+      statusLine.textContent = "";
     }
 
     function handleEvent(raw) {
-      let event = "message";
+      let eventName = "message";
       const dataLines = [];
       for (const line of raw.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
+        if (line.startsWith("event:")) eventName = line.slice(6).trim();
         else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
       }
       if (!dataLines.length) return;
       const data = JSON.parse(dataLines.join("\n"));
-      if (event === "session") sessionId = data.session_id;
-      else if (event === "text") appendText(data.text || "");
-      else if (event === "tool") toolLine(data.name, data.status, data.summary || "");
-      else if (event === "error") showError(data.message || "Something went wrong.");
+      if (eventName === "session") sessionId = data.session_id;
+      else if (eventName === "text") appendText(data.text || "");
+      else if (eventName === "tool") toolLine(data.name, data.status, data.summary || "");
+      else if (eventName === "error") showError(data.message || "Something went wrong.");
     }
 
     async function sendMessage(text) {
       const value = text.trim();
-      if (!value || sending) return;
-      addMessage("user", value);
+      if (!value || sending || bugX === null) return;
       message.value = "";
-      assistant = null;
-      setSending(true);
+      sending = true;
+      send.disabled = true;
+      message.disabled = true;
+      clearTurn();
+      requestLayout("updates", bugX, bugY);
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -357,57 +502,53 @@
       } catch (error) {
         showError(error.message || "The connection dropped.");
       } finally {
-        assistant = null;
-        setSending(false);
-        message.focus();
+        sending = false;
+        send.disabled = false;
+        message.disabled = false;
+        if (statusLine.textContent === "Working…") statusLine.textContent = "";
+        if (!pointerInside && !fieldFocused) scheduleCollapse(1600);
       }
     }
 
     async function refreshAuth() {
       const response = await fetch("/api/auth/status");
       const status = await response.json();
-      banner.classList.toggle("visible", !status.connected);
-      if (!status.connected && status.detail) bannerText.textContent = status.detail;
-      else bannerText.textContent = "Connect Google Docs before the first edit.";
+      connected = Boolean(status.connected);
+      document.body.dataset.notice = connected ? "off" : "on";
+      authText.textContent = (!connected && status.detail) || "Connect Google Docs before the first edit.";
+      if (mode !== "bug" && bugX !== null) requestLayout(mode, bugX, bugY);
     }
 
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      sendMessage(message.value);
-    });
-    message.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        form.requestSubmit();
-      }
-    });
-    document.querySelectorAll("[data-prompt]").forEach((button) => {
-      button.addEventListener("click", () => sendMessage(button.dataset.prompt));
-    });
-    clearButton.addEventListener("click", () => {
-      sessionId = null;
-      assistant = null;
-      showEmpty();
-    });
     connect.addEventListener("click", async () => {
       connect.disabled = true;
-      bannerText.textContent = "Approve the Google prompt in your browser.";
+      authText.textContent = "Approve the Google prompt in your browser.";
       try {
         const response = await fetch("/api/auth/login", { method: "POST" });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          bannerText.textContent = payload.detail || "Google sign-in failed.";
+          authText.textContent = payload.detail || "Google sign-in failed.";
           return;
         }
         await refreshAuth();
       } catch (error) {
-        bannerText.textContent = error.message || "Google sign-in failed.";
+        authText.textContent = error.message || "Google sign-in failed.";
       } finally {
         connect.disabled = false;
       }
     });
-    refreshAuth();
-    message.focus();
+
+    async function init() {
+      const bridge = api();
+      if (!bridge) return;
+      const state = await bridge.get_state();
+      bugX = state.bugX;
+      bugY = state.bugY;
+      await refreshAuth();
+      requestLayout("bug", bugX, bugY);
+    }
+
+    if (api()) init();
+    else window.addEventListener("pywebviewready", init);
   </script>
 </body>
 </html>

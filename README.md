@@ -35,14 +35,16 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
 copy .env.example .env
-uvicorn gdocs_agent.api:app --host 127.0.0.1 --port 8000
+gdocs-chat
 ```
 
-Open http://127.0.0.1:8000 and choose **Connect Google Docs**. Paste a doc link, or ask it to list recent docs.
+A round button stays above your other windows. Drag it beside the doc. Hover it to open a short chat bar, click the field, and ask for an edit. The bar shows each change as it happens, then shrinks back to the button. Right-click the button to reset its place or quit.
+
+Choose **Connect** on the bar the first time. Google’s approval still opens in the browser once; the chat itself stays on the button.
 
 ## MCP
 
-The web chat does not need this. To use the same tools from Cursor or Claude Desktop, point the client at:
+The floating chat does not need this. To use the same tools from Cursor or Claude Desktop, point the client at:
 
 ```text
 C:\Users\aksha\GoogleDocsAgent\.venv\Scripts\python.exe -m gdocs_agent.mcp_server

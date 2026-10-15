@@ -1,4 +1,4 @@
-"""Local chat server. Run with uvicorn on http://127.0.0.1:8000."""
+"""Local chat service for the floating overlay."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from gdocs_agent.agent import Agent
@@ -53,6 +53,13 @@ def _get_agent() -> Agent:
 @app.get("/")
 def index():
     return FileResponse(_STATIC / "index.html")
+
+
+@app.get("/overlay.css")
+def overlay_css():
+    from gdocs_agent.overlay_layout import stylesheet
+
+    return Response(stylesheet(), media_type="text/css")
 
 
 @app.get("/api/auth/status")
@@ -123,4 +130,7 @@ async def chat(body: ChatIn):
 
 
 def main() -> None:
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    """Open the floating chat above the other windows."""
+    from gdocs_agent.overlay import main as run_overlay
+
+    run_overlay()
